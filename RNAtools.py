@@ -51,11 +51,11 @@ class CT:
         #returns a list of base pairs i<j
         out = []
         for nt in range(len(self.ct)):
-            if nt != 0 and self.ct[nt] > self.num[nt]:
+            if self.ct[nt] != 0 and self.ct[nt] > self.num[nt]:
                 out.append((self.num[nt],self.ct[nt]))
         return out
     
-    def pair2CT(self,pairs,seq,name=None):
+    def pair2CT(self, pairs, seq, name=None, skipConflicting=False):
         #pairs are an array of bp tuples ( i < j )
         #   i.e. [(4,26),(5,25),...]
         #length is implied from the given sequence
@@ -76,8 +76,10 @@ class CT:
         for i,j in pairs:
             if self.ct[i-1]!=0:
                 print 'Warning: conflicting pairs, (%s - %s) : (%s - %s)' % (str(i),str(j),str(self.ct[i-1]),str(i))
+                if skipConflicting: continue
             if self.ct[j-1]!=0:
                 print 'Warning: conflicting pairs, (%s - %s) : (%s - %s)' % (str(i),str(j),str(j),str(self.ct[j-1]))
+                if skipConflicting: continue
             self.ct[i-1]=j
             self.ct[j-1]=i
     
