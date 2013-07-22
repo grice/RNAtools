@@ -1,3 +1,12 @@
+########################################################
+#                                                      #
+#      RNAtools.py CT and dotplot data structures      #
+#               v 0.7.0     22 July 2013               #
+#                                                      #
+#          author gregg rice - gmr@unc.edu             #
+#                                                      #
+########################################################
+
 import sys
 
 class CT:
@@ -56,9 +65,11 @@ class CT:
         return out
     
     def pair2CT(self, pairs, seq, name=None, skipConflicting=False):
-        #pairs are an array of bp tuples ( i < j )
-        #   i.e. [(4,26),(5,25),...]
-        #length is implied from the given sequence
+        """
+        pairs are an array of bp tuples ( i < j )
+           i.e. [(4,26),(5,25),...]
+        length is implied from the given sequence
+        """
         length = len(seq)
         
         self.num = range(1,length+1)
@@ -84,8 +95,9 @@ class CT:
             self.ct[j-1]=i
     
     def cutCT(self,start,end):
-        
-        #inclusively cuts a ct file and removes pairs outside the cutsite
+        """
+        inclusively cuts a ct file and removes pairs outside the cutsite
+        """
         start = int(start)
         end = int(end)
         
@@ -201,6 +213,77 @@ class CT:
         finalCount = min(count, tempBack)
         return finalCount
     
+    def extractHelicies(self,fillPairs=True):
+        """
+        returns a list of helicies in a given CT file and the nucleotides
+        making up the list as a dict object. e.g. {0:[(1,50),(2,49),(3,48)}
+        
+        defaults to filling 1,1 and 2,2 mismatches
+        """
+        # first step is to find all the helicies
+        rna = self.copy()
+        if fillPairs:
+            rna = rna.fillPairs()
+        helicies = {}
+        nt = 0
+        heNum = 0
+        
+        while nt < len(rna.ct):
+            if rna.ct[nt] == 0:
+                nt += 1
+                continue
+            else:
+                # skip dups
+                if nt > rna.ct[nt]:
+                    nt += 1
+                    continue
+                
+                tempPairs = []
+                stillHelix = True
+                
+                previous = rna.ct[nt]
+                
+                while stillHelix:
+                    # see if the helix juts up against another one
+                    if abs(rna.ct[nt] - previous ) > 1:
+                        break
+                    #add the pairs
+                    elif rna.ct[nt] != 0:
+                        tempPairs.append((nt+1,rna.ct[nt]))
+                        previous = rna.ct[nt]
+                        nt+=1
+                    #handle slip case
+                    else:
+                        if rna.ct[nt+1] == rna.ct[nt-1]-1:
+                            nt+=1
+                            #print 'slip'
+                        else:
+                            break
+                
+                # remove single bp helicies
+                if len(tempPairs) <= 1:
+                    continue
+                helicies[heNum] = tempPairs
+                heNum += 1
+        return helicies
+    
+    def fillPairs(self):
+        """
+        fills 1,1 and 2,2 mismatches in an RNA structure
+        """
+        rna = self.copy()
+        # fill in 1,1 mismatch, 2,2 mismatch
+        for i in xrange(len(rna.ct)-3):
+            if rna.ct[i+1] == 0:
+                if rna.ct[i] - rna.ct[i+2] == 2:
+                    rna.ct[i+1] = rna.ct[i] - 1
+            if rna.ct[i+1] + rna.ct[i+2] == 0:
+                if rna.ct[i] - rna.ct[i+3] == 3:
+                    rna.ct[i+1] = rna.ct[i] - 1
+                    rna.ct[i+2] = rna.ct[i] - 2
+        return rna
+    
+    
     def extractPK(self,fillPairs=True):
         """
         returns the pk1 and pk2 pairs from a CT file. Ignores single base
@@ -220,62 +303,18 @@ class CT:
                 if max(h1[0]) > max(h2[0]):return True
             else: return False
         
-        def fillPairs(rna):
-            # fill in 1,1 mismatch, 2,2 mismatch
-            for i in xrange(len(rna.ct)-3):
-                if rna.ct[i+1] == 0:
-                    if rna.ct[i] - rna.ct[i+2] == 2:
-                        rna.ct[i+1] = rna.ct[i] - 1
-                if rna.ct[i+1] + rna.ct[i+2] == 0:
-                    if rna.ct[i] - rna.ct[i+3] == 3:
-                        rna.ct[i+1] = rna.ct[i] - 1
-                        rna.ct[i+2] = rna.ct[i] - 2
-            return rna
-        
         
         # make a copy so we don't destroy the original object
         rna = self.copy()
         
-        if fillPairs:
-            rna = fillPairs(rna)
         
         #self.writeCT('foo.ct')
         #rna.writeCT('bar.ct')
         
-        # first step is to find all the helicies
-        helicies = {}
-        nt = 0
-        heNum = 0
-        
-        while nt < len(rna.ct):
-            if rna.ct[nt] == 0:
-                nt += 1
-                continue
-            else:
-                # skip dups
-                if nt > rna.ct[nt]:
-                    nt += 1
-                    continue
-                
-                tempPairs = []
-                stillHelix = True
-                
-                while stillHelix:
-                    if rna.ct[nt] != 0:
-                        tempPairs.append((nt+1,rna.ct[nt]))
-                        nt+=1
-                    else:
-                        if rna.ct[nt+1] == rna.ct[nt-1]-1:
-                            nt+=1
-                            #print 'slip'
-                        else:
-                            break
-                
-                # remove single bp helicies
-                if len(tempPairs) <= 1:
-                    continue
-                helicies[heNum] = tempPairs
-                heNum += 1
+        # get the helicies by calling the extract helix function
+        helicies = rna.extractHelicies(fillPairs=fillPairs)
+        heNum = len(helicies)
+
         
         # do the helicies overlap? Check for a crosshatching pattern
         # append them to a list if they have it.
