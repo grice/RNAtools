@@ -1,37 +1,66 @@
 ########################################################
 #                                                      #
 #      RNAtools.py CT and dotplot data structures      #
-#               v 0.7.0     22 July 2013               #
+#               v 0.8.1     23 Nov  2014               #
 #                                                      #
 #          author gregg rice - gmr@unc.edu             #
 #                                                      #
 ########################################################
 
+# 0.8   numpy dotplot functions added
+# 0.8.1 contact distance fixed
+
 import sys
+import numpy as np
 
 class CT:
     def __init__(self,fIN=None):
-        #if givin an input file construct the ct object automatically
+        """
+        if givin an input file .ct construct the ct object automatically
+        """
         if fIN:
-            self.name = fIN
-            self.num,self.seq,self.ct = self.readCT(fIN)
+            #self.name = fIN
+            #self.num,self.seq,self.ct = self.readCT(fIN)
+            self.readCT(fIN)
     
     def __str__(self):
+        """
+        overide the default print statement for the object
+        """
         a = '{ Name= %s, len(CT)= %s }' % (self.name, str(len(self.ct)))
         return a
     
-    def readCT(self,z):
+    def readCT(self,fIN):
+        """
         #reads a ct file, !reqires header!
+        """
         num,seq,bp = [],[],[]
-        linesToRead = int(open(z).readlines()[0].rstrip().split()[0])
+        try:
+            linesToRead = int(open(fIN).readlines()[0].rstrip().split()[0])
+        except:
+            print "file is not in .ct format. Requires Header"
+            sys.exit()
         #print linesToRead
-        for i in open(z).readlines()[1:linesToRead+1]:
+        for i in open(fIN).readlines()[1:linesToRead+1]:
             a = i.rstrip().split()
             num.append(int(a[0])),seq.append(str(a[1])),bp.append(int(a[4]))
-        return num,seq,bp
+        
+        self.name= fIN
+        self.num = num
+        self.seq = seq
+        self.ct  = bp
+        #return num,seq,bp
     
     def writeCT(self,fOUT):
-        #writes a ct file
+        """
+        writes a ct file from the ct object
+        """
+        
+        #handle empty ct object case
+        if not self.ct:
+            print "empty ct object. Nothing to write"
+            return
+        
         w = open(fOUT,'w')
         line = '{0:6d} {1}\n'.format(len(self.num),self.name)
         for i in range(len(self.num)-1):
@@ -47,7 +76,7 @@ class CT:
     
     def copy(self):
         """
-        returns a copy of the ct object
+        returns a deep copy of the ct object
         """
         out = CT()
         out.name = self.name[:]
@@ -57,15 +86,20 @@ class CT:
         return out
     
     def pairList(self):
-        #returns a list of base pairs i<j
+        """
+        #returns a list of base pairs i<j as a array of tuples:
+        [(19,50),(20,49)....]
+        """
         out = []
         for nt in range(len(self.ct)):
             if self.ct[nt] != 0 and self.ct[nt] > self.num[nt]:
                 out.append((self.num[nt],self.ct[nt]))
         return out
     
-    def pair2CT(self, pairs, seq, name=None, skipConflicting=False):
+    def pair2CT(self, pairs, seq, name=None, skipConflicting=True):
         """
+        constructs a ct object from a list of base pairs and a sequence
+        
         pairs are an array of bp tuples ( i < j )
            i.e. [(4,26),(5,25),...]
         length is implied from the given sequence
@@ -117,6 +151,17 @@ class CT:
             out.ct.append(nt_out)
         
         return out
+    
+    def stripCT(self):
+        """
+        returns an array the length of the ct object
+        in a non-redundant form - e.g. only gives pairs i<j
+        """
+        pairs = self.pairList()
+        halfPlexCT = np.zeros_like(self.ct)
+        for i,j in pairs:
+            halfPlexCT[i-1] = j
+        return halfPlexCT
     
     def contactDistance(self,i,j):
         """
@@ -195,11 +240,16 @@ class CT:
                 #count += 6.5
                 count += 1
             
+            elif self.ct[k] < k+1:
+                k += 1
+                count += 1
+                #print "Backtracking prevented, going forward to "+str(k+1)
+
             #handle branching, jumping the base of a helix is only 1
             else:
                 # one count for the step to the next
                 count += 1
-                k = self.ct[k]
+                k = self.ct[k] - 1
                 
                 # if by jumping you land on your nt
                 # stop counting
@@ -208,23 +258,23 @@ class CT:
                 
                 # one count for jumping the helix
                 #count += 15.0
-                count += 1
+                #count += 1
             #print i,k,j
         finalCount = min(count, tempBack)
         return finalCount
     
-    def extractHelicies(self,fillPairs=True):
+    def extractHelices(self,fillPairs=True):
         """
-        returns a list of helicies in a given CT file and the nucleotides
+        returns a list of helices in a given CT file and the nucleotides
         making up the list as a dict object. e.g. {0:[(1,50),(2,49),(3,48)}
         
         defaults to filling 1,1 and 2,2 mismatches
         """
-        # first step is to find all the helicies
+        # first step is to find all the helices
         rna = self.copy()
         if fillPairs:
             rna = rna.fillPairs()
-        helicies = {}
+        helices = {}
         nt = 0
         heNum = 0
         
@@ -260,12 +310,12 @@ class CT:
                         else:
                             break
                 
-                # remove single bp helicies
+                # remove single bp helices
                 if len(tempPairs) <= 1:
                     continue
-                helicies[heNum] = tempPairs
+                helices[heNum] = tempPairs
                 heNum += 1
-        return helicies
+        return helices
     
     def fillPairs(self):
         """
@@ -295,7 +345,7 @@ class CT:
         
         def checkOverlap(h1,h2):
             # only need to check one set of pairs from each
-            # of the helicies. Test is to see if they form
+            # of the helices. Test is to see if they form
             # a cross hatching pattern
             if max(h1[0]) > min(h2[0]) > min(h1[0]):
                 if max(h2[0]) > max(h1[0]):return True
@@ -311,20 +361,22 @@ class CT:
         #self.writeCT('foo.ct')
         #rna.writeCT('bar.ct')
         
-        # get the helicies by calling the extract helix function
-        helicies = rna.extractHelicies(fillPairs=fillPairs)
-        heNum = len(helicies)
+        # get the helices by calling the extract helix function
+        helices = rna.extractHelices(fillPairs=fillPairs)
+        heNum = len(helices)
 
         
-        # do the helicies overlap? Check for a crosshatching pattern
+        # do the helices overlap? Check for a crosshatching pattern
         # append them to a list if they have it.
         overlaps = [] # stores the helix number
         
         for i in xrange(heNum):
             for j in xrange(i+1,heNum):
-                if checkOverlap(helicies[i],helicies[j]):
+                if checkOverlap(helices[i],helices[j]):
                     overlaps.append((i,j))
         
+        #print overlaps
+        #print '#'*30
         # if there are no overlapping bps, return none
         if len(overlaps) == 0:
             return None, None
@@ -338,13 +390,37 @@ class CT:
         pk2Helix = filter(lambda x: x != pk1Helix, allHelix)
         
         # construct list of base pairs
-        pk1 = helicies[pk1Helix]
+        pk1 = helices[pk1Helix]
         pk2 = []
         for i in pk2Helix:
-            for j in helicies[i]:
+            for j in helices[i]:
                 pk2.append(j)
         
         return pk1, pk2
+    
+    def padCT(self, referenceCT, giveAlignment=False):
+        """
+        utilizes the global padCT method on this object
+        """
+        return padCT(self, referenceCT, giveAlignment)
+    
+    def readSHAPE(self, fIN):
+        """
+        utilizes the global readSHAPE method and appends a the data to the object as .shape
+        """
+        self.shape = readSHAPE(fIN)
+        if len(self.shape)< len(self.ct):
+            print "warning! shape array is smaller than the CT range"
+        
+    def writeSHAPE(self, fOUT):
+        """
+        utilizes the global writeSHAPE method, and writes the .shape array attached to the object to a file
+        """
+        try:
+            writeSHAPE(self.shape, fOUT)
+        except:
+            print "No SHAPE data present"
+            return
 
 
 def padCT(targetCT, referenceCT,giveAlignment=False):
@@ -398,7 +474,49 @@ def padCT(targetCT, referenceCT,giveAlignment=False):
     else:
         return out
     
- 
+def readSHAPE(fIN):
+    """
+    reads an RNA structure .shape or .map file. Returns an array of the SHAPE data
+    """
+    shape = []
+    for i in open(fIN, "rU").readlines():
+        line = i.rstrip().split()[1]
+        shape.append(float(line))
+    return shape
+
+def writeSHAPE(shape, fOUT):
+    """
+    writes the data from a shape array into the file fOUT
+    """
+    w = open(fOUT, "w")
+    
+    for i in range(len(shape)):
+        line = "{0}\t{1}\n".format(i+1, shape[i])
+        w.write(line)
+    w.close()
+    
+def readSeq(fIN, type='RNAstructure'):
+    """
+    reads an RNAstructure sequence file format and converts it to an
+    array of nucleotides. e.g.: ['A','G','C','C'...]
+    
+    also returns the name of the sequence from the file
+    """
+    
+    # strip the input file of comments
+    seqRaw = []
+    for i in open(fIN, "rU").read().split():
+        if len(i) == 0: continue
+        if i[0] == ";": continue
+        seqRaw.append(i)
+    
+    name = seqRaw[0]
+    seqJoin = ''.join(seqRaw[1:])
+    seq = []
+    for i in seqJoin:
+        if i == '1': break
+        seq.append(i)
+    return processed, name
 
 
 class dotPlot:
@@ -408,7 +526,7 @@ class dotPlot:
         self.length = None
         self.dp = {}
         for elem in ['i','j','logBP']:
-            self.dp[elem] = []        
+            self.dp[elem] = np.array([])        
         if fIN:
             self.name = fIN
             self.dp,self.length = self.readDP(fIN)
@@ -419,26 +537,75 @@ class dotPlot:
     
     def readDP(self,fIN):
         out = dotPlot()
+        ln = 0
+        
+        i = []
+        j = []
+        logBP = []
 
         out.length = int(open(fIN).readlines()[0].lstrip().split()[0])
         for n in open(fIN).readlines()[2:]:
             line = n.rstrip().split()
-            out.dp['i'].append(int(line[0]))
-            out.dp['j'].append(int(line[1]))
-            out.dp['logBP'].append(float(line[2]))
+            #out.dp['i'] = np.append(out.dp['i'],int(line[0]))
+            #out.dp['j'] = np.append(out.dp['j'],int(line[1]))
+            #out.dp['logBP'] = np.append(out.dp['logBP'],float(line[2]))
+            i.append(int(line[0]))
+            j.append(int(line[1]))
+            logBP.append(float(line[2]))
+            #ln+=1
+            #if ln%500 == 0:
+            #    print ln
+        # load in as python object first, MUCH faster
+        out.dp['i'] = np.append(out.dp['i'], i)
+        out.dp['j'] = np.append(out.dp['j'], j)
+        out.dp['logBP'] = np.append(out.dp['logBP'], logBP)
         return out.dp,out.length
+    
+    def writeDP(self,fOUT):
+        """
+        writes a DP file back to disk
+        """
+        w = open(fOUT, "w")
+        
+        # file header
+        w.write("{0}\ni\tj\t-log10(Probability)\n".format(self.length))
+        
+        # resort the array first by j
+        jsort = np.argsort(self.dp['j'],kind='mergesort')
+        i,j,logbp = self.dp['i'][jsort], self.dp['j'][jsort], self.dp['logBP'][jsort]
+        
+        #then by i
+        isort = np.argsort(self.dp['i'],kind='mergesort')
+        i,j,logbp = self.dp['i'][isort], self.dp['j'][isort], self.dp['logBP'][isort]
+        
+        self.dp['i'] = i
+        self.dp['j'] = j
+        self.dp['logBP'] = logbp
+        
+        # main file
+        for n in range(len(self.dp['i'])):
+            line = "{0}\t{1}\t{2}\n".format(int(self.dp['i'][n]), int(self.dp['j'][n]), self.dp['logBP'][n])
+            w.write(line)
+        #close file
+        w.close()
     
     def pairList(self):
         # returns a list of base pairs i< j from the dotplot
         out = []
         for n in range(len(self.dp['i'])):
-            out.append((self.dp['i'][n],self.dp['j'][n]))
+            out.append((int(self.dp['i'][n]),int(self.dp['j'][n])))
         return out
     
-    def requireProb(self,logBP):
-        #require probability at least as large as cutoff
+    def requireProb(self,minlogBP, maxlogBP=0.0):
+        """
+        require probability at least as large as cutoff
         
-        logBP = float(logBP)
+        setting a minlogBP of 3 will give a dp object with probibilites of at
+        least 0.001
+        """
+        
+        minlogBP = float(minlogBP)
+        maxlogBP = float(maxlogBP)
         
         out = dotPlot()
         out.length = self.length
@@ -446,11 +613,20 @@ class dotPlot:
         
         dp = self.dp
         
-        for n in range(len(dp['i'])):
-            if dp['logBP'][n] <= logBP:
-                out.dp['i'].append(dp['i'][n])
-                out.dp['j'].append(dp['j'][n])
-                out.dp['logBP'].append(dp['logBP'][n])
+        # select which nts are between a certain cutoff
+        probFilter = (dp['logBP'] < minlogBP) * (dp['logBP'] > maxlogBP)
+        
+        out.dp['logBP'] = dp['logBP'][probFilter]
+        out.dp['i']     = dp['i'][probFilter]
+        out.dp['j']     = dp['j'][probFilter]
+        
+        
+        
+        #for n in range(len(dp['i'])):
+        #    if dp['logBP'][n] <= logBP:
+        #        out.dp['i'].append(dp['i'][n])
+        #        out.dp['j'].append(dp['j'][n])
+        #        out.dp['logBP'].append(dp['logBP'][n])
         return out
     
     def trimEnds(self, trimSize, which='Both'):
@@ -461,28 +637,198 @@ class dotPlot:
         dp = self.dp
         
         if which == '5prime':
-            for n in range(len(dp['i'])):
-                if dp['i'][n] >= trimSize and \
-                            dp['j'][n] >= trimSize:
-                    out.dp['i'].append(dp['i'][n])
-                    out.dp['j'].append(dp['j'][n])
-                    out.dp['logBP'].append(dp['logBP'][n])
+            dpfilter = ( dp['i'] >= trimSize ) * ( dp['j'] >= trimSize )
+            out.dp['i'] = np.array( dp['i'][ dpfilter ])
+            out.dp['j'] = np.array( dp['j'][ dpfilter ])
+            out.dp['logBP'] = np.array( dp['logBP'][ dpfilter ])
+            #for n in range(len(dp['i'])):
+            #    if dp['i'][n] >= trimSize and \
+            #                dp['j'][n] >= trimSize:
+            #        out.dp['i'].append(dp['i'][n])
+            #        out.dp['j'].append(dp['j'][n])
+            #        out.dp['logBP'].append(dp['logBP'][n])
             return out
         
         if which =='3prime':
-            for n in range(len(dp['i'])):
-                if (self.length-trimSize) >= dp['i'][n] and \
-                            (self.length-trimSize) >= dp['j'][n] :
-                    out.dp['i'].append(dp['i'][n])
-                    out.dp['j'].append(dp['j'][n])
-                    out.dp['logBP'].append(dp['logBP'][n])
+            dpfilter = ( self.length - trimSize >= dp['i'] ) * ( self.length - trimSize >= dp['j'] )
+            out.dp['i'] = np.array( dp['i'][ dpfilter ])
+            out.dp['j'] = np.array( dp['j'][ dpfilter ])
+            out.dp['logBP'] = np.array( dp['logBP'][ dpfilter ])
+            #for n in range(len(dp['i'])):
+            #    if (self.length-trimSize) >= dp['i'][n] and \
+            #                (self.length-trimSize) >= dp['j'][n] :
+            #        out.dp['i'].append(dp['i'][n])
+            #        out.dp['j'].append(dp['j'][n])
+            #        out.dp['logBP'].append(dp['logBP'][n])
             return out
         
-        for n in range(len(dp['i'])):
-            if (self.length-trimSize) >= dp['i'][n] >= trimSize and \
-                        (self.length-trimSize) >= dp['j'][n] >= trimSize:
-                out.dp['i'].append(dp['i'][n])
-                out.dp['j'].append(dp['j'][n])
-                out.dp['logBP'].append(dp['logBP'][n])
+        dpfilter1 = ( dp['i'] >= trimSize ) * ( dp['j'] >= trimSize )
+        dpfilter2 = ( self.length - trimSize >= dp['i'] ) * ( self.length - trimSize >= dp['j'] )
+        dpfilter = dpfilter1 * dpfilter2
+        out.dp['i'] = np.array( dp['i'][ dpfilter ])
+        out.dp['j'] = np.array( dp['j'][ dpfilter ])
+        out.dp['logBP'] = np.array( dp['logBP'][ dpfilter ])
         
         return out
+    
+    def calcShannon(self,printProgress=False,printOut=False,toFile=None):
+        dp = self.dp
+        shannon = []
+        
+        if toFile:
+            w = open(toFile,'w')
+        
+        #precalculate nlog(n), array is already in -logForm
+        dp['nlogn'] = dp['logBP']*10**(-1*dp['logBP'])
+        
+        for nt in range(1,self.length+1):
+            # if col i or j is the nt include the value and sum it
+            mask = ((nt==dp['i'])+(nt==dp['j']))
+            summed = np.sum(dp['nlogn'][mask])
+            
+            # catch rounding errors:
+            if summed < 0: summed = 0
+            
+            #pairing prob, breakpoint
+            #x = 10**(-dp['logBP'][mask])
+            #print nt, np.sum(x), x[x>0.001]
+            
+            #print to stout if desired
+            if printOut:print nt,summed
+            if printProgress:progress(nt,dp['length'])
+            #write to file if desired
+            if toFile:
+                line = '\t'.join(map(str,[nt,summed]))
+                w.write(line+'\n')
+            shannon.append(summed)
+        if printProgress:print '' 
+        if toFile: w.close()
+        return shannon
+
+    def averageSlippedBPs(self, struct=None, predictedOnly=True):
+        """
+        replaces PlusandMinus script. If a helix in a predicted structure is slipped +/-1 nt
+        we need to sum the predicted probabilities otherwise the predicted Shannon entropy
+        will be artificially high.
+        
+        turning off predicted only will go through all i<j basepairs and merge them in preference
+        of liklihood. This is more compuationally intensive
+        """
+        dotPlot = self.dp
+        #dotPlotCopy = {'logBP':copy.deepcopy(dotPlot['logBP'])}
+        
+        slippedCutoff = 2 # this is the value in -log10(prob), 2 = a prob of 0.01
+        slipped = []
+        
+        # if a reference structure is given, merge pairs to it first
+        if struct:
+            for pair in xrange(1,len(struct.ct)-1):
+                # define the base pairs
+                pair_i = pair+1
+                pair_j = struct.ct[pair]
+                
+                # skip non-paired nucleotides
+                if pair_j == 0: continue
+                # skip pairs i > j so we don't double count
+                if pair_j < pair_i: continue
+                
+                # create some search filters
+                filter_i        = dotPlot['i'] == pair_i
+                filter_j        = dotPlot['j'] == pair_j
+                
+                filter_i_before = dotPlot['i'] == pair_i - 1
+                filter_i_after  = dotPlot['i'] == pair_i + 1
+                
+                filter_j_before = dotPlot['j'] == pair_j - 1
+                filter_j_after  = dotPlot['j'] == pair_j + 1
+                
+                # find i,j union before, at, and after
+                filterDP = {}
+                filterDP['before_j'] = filter_j_before * filter_i
+                filterDP['before_i'] = filter_j * filter_i_before
+                
+                filterDP['after_j']  = filter_j_after * filter_i
+                filterDP['after_i']  = filter_j * filter_i_after
+                
+                # define current point
+                at                   = filter_j * filter_i
+                
+                # handle slippage, first define base prob
+                prob_at = 10**(-dotPlot['logBP'][at])
+                
+                # cycle through all filter combinations
+                for filterPair in filterDP.keys():
+                    
+                    # shorthand variable for current filter
+                    curr = filterDP[ filterPair ]
+                    
+                    # if pair exists ...
+                    if np.sum(curr) == 1:
+                        # add it to predicted pair probability
+                        prob_at += 10**(-dotPlot['logBP'][ curr ])
+                        
+                        # add pair to slipped list if it meets slip criteria
+                        if dotPlot['logBP'][ curr ] < slippedCutoff:
+                            slipped.append( (pair_i,pair_j) )
+                        
+                        # now set it to a very low probability for zero
+                        dotPlot['logBP'][ curr ] = 50
+                
+                # return to -log10 format
+                dotPlot['logBP'][at] = -np.log10(prob_at)
+            
+        
+        if not predictedOnly:
+            # go through all i<j basepair combinations and check to see if there is a slipped base pair
+            for i, j in self.pairList():
+                
+                # correct for python counting starting at 0
+                pair_i, pair_j = int(i+0), int(j+0)
+                
+                # see if there exists a basepair for this combination
+                filter_i = (dotPlot['i'] == pair_i)
+                filter_j = (dotPlot['j'] == pair_j)
+                
+                filter_union = (filter_i * filter_j)
+                
+                # only continue if the pair is reasonably likely (>1% chance of forming)
+                if np.sum(filter_union) == 1 and dotPlot['logBP'][ filter_union ] < 3:
+                    filterList = {}
+                    
+                    # define the various types of slippage
+                    filter_ibefore = (dotPlot['i'] == pair_i-1)
+                    filter_jbefore = (dotPlot['j'] == pair_j-1)
+                    filter_iafter = (dotPlot['i'] == pair_i+1)
+                    filter_jafter = (dotPlot['j'] == pair_j+1)
+                    
+                    # index filters to a dict
+                    filterList['before_i'] = filter_ibefore * filter_j
+                    filterList['before_j'] = filter_i * filter_jbefore
+                    filterList['after_i']  = filter_iafter * filter_j
+                    filterList['after_j']  = filter_i * filter_jafter
+                    
+                    
+                    # define the prob at in normal normal space
+                    prob_at = 10**(-dotPlot['logBP'][filter_union])
+                    
+                    # go through each of the filters
+                    for pairFilter in filterList.keys():
+                        curr = filterList[ pairFilter ]
+                        
+                        # if the current pair exists in the dotplot
+                        if np.sum(curr) == 1:
+                            # check to see if it's less likely than current pairs
+                            if dotPlot['logBP'][ filter_union ] < dotPlot['logBP'][ curr ]:
+                                # and add it to the current pair if it is
+                                prob_at += 10**(-dotPlot['logBP'][ curr ])
+                                
+                                # set to a very low probabliity afterwards
+                                dotPlot['logBP'][ curr ] = 50
+                    dotPlot['logBP'][ filter_union ] = -np.log10(prob_at)
+        
+        return slipped
+
+
+    def pairingProb(self):
+        pass
+
