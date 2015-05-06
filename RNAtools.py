@@ -9,6 +9,7 @@
 
 # 0.8   numpy dotplot functions added
 # 0.8.1 contact distance fixed
+# 0.8.2 pairing probability function added - 5/6/2015 gmr
 
 import sys
 import numpy as np
@@ -830,5 +831,26 @@ class dotPlot:
 
 
     def pairingProb(self):
-        pass
+        """
+        returns the pairing probability
+        
+        returned array is equal to the length of the RNA
+        """
+        
+        dp = self.dp
+        prob = []
+        
+        # convert the -log10 values to untransformed probability
+        dp['prob'] = 10**(-1*dp['logBP'])
+        
+        # use a numpy array to mask entires containing i or j and sum
+        # the probability for each nt in the RNA
+        for nt in range(1,self.length+1):
+            mask = ((nt==dp['i'])+(nt==dp['j']))
+            summed = np.sum(dp['prob'][mask])
+            
+            prob.append(summed)
+            
+        return prob
+        
 
