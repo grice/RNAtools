@@ -1,7 +1,7 @@
 ########################################################
 #                                                      #
 #      RNAtools.py CT and dotplot data structures      #
-#               v 0.8.1     23 Nov  2014               #
+#               v 0.8.3      3 SEP  2016               #
 #                                                      #
 #          author gregg rice - gmr@unc.edu             #
 #                                                      #
@@ -10,6 +10,8 @@
 # 0.8   numpy dotplot functions added
 # 0.8.1 contact distance fixed
 # 0.8.2 pairing probability function added - 5/6/2015 gmr
+# 0.8.2b dotplot add entry function added 2/20/2016 gmr
+# 0.8.3 added find, cat, copy function - 9/3/2016
 
 import sys
 import numpy as np
@@ -536,6 +538,26 @@ class dotPlot:
         a = '{ Name= %s, len(RNA)= %s, entries(dotPlot)= %s }' % (self.name, str(self.length),str(len(self.dp['i'])))
         return a
     
+    def copy(self):
+        """
+        copies the dp object
+        """
+        
+        newObj = dotPlot()
+        newObj.name = str(self.name)
+        newObj.length = int(self.length)
+        newObj.dp = dict(self.dp)
+        
+        return newObj
+    
+    def cat(self):
+        """
+        prints the output
+        """
+        print "#      i        j      logBP"
+        for i in range(len(self.dp["i"])):
+            print "{0:8.0f} {1:8.0f}  {2: 3.6f}".format( self.dp["i"][i], self.dp["j"][i], self.dp["logBP"][i] )
+    
     def readDP(self,fIN):
         out = dotPlot()
         ln = 0
@@ -590,6 +612,44 @@ class dotPlot:
         #close file
         w.close()
     
+    def addEntry(self, i, j, logBP):
+        """
+        adds an entry to the pairing probability list
+        """
+        self.dp['i'] = np.append(self.dp['i'],i)
+        self.dp['j'] = np.append(self.dp['j'],j)
+        self.dp['logBP'] = np.append(self.dp['logBP'],logBP)
+        
+    
+    def findValue(self, i=None, j=None):
+        """
+        return the pairing prob corresponding to i, j
+        
+        giving one value will output a dotPlot object with
+        i or j equal to the value
+        
+        giving two values will look up i and j
+        
+        """
+        dp = self.dp
+        
+        if i and not j:
+            i_filter = ( dp['i'] == i ) + ( dp['j'] == i )
+            j_filter = np.ones(len(dp['j']),dtype="bool")
+        
+        else:
+            i_filter = dp['i'] == i
+            j_filter = dp['j'] == j
+        
+        outDP = self.copy()
+        
+        outDP.dp["i"] = outDP.dp["i"][i_filter*j_filter]
+        outDP.dp["j"] = outDP.dp["j"][i_filter*j_filter]
+        outDP.dp["logBP"] = outDP.dp["logBP"][i_filter*j_filter]
+        
+        return outDP
+        
+        
     def pairList(self):
         # returns a list of base pairs i< j from the dotplot
         out = []
