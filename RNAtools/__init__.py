@@ -16,7 +16,9 @@ import sys, re
 import numpy as np
 import re
 
+
 class CT:
+
     def __init__(self, fIN=None, suboptimal=False):
         """
         if givin an input file .ct construct the ct object automatically
@@ -44,12 +46,12 @@ class CT:
             print("file is not in .ct format. Requires Header")
             return 0
 
-        #Gets the free energy
+        # Gets the free energy
         energyMatch = re.compile(r'.*ENERGY = ([0-9\.\-]+).*')
         header = open(fIN).readlines()[0].strip()
 
         if energyMatch.match(header):
-            self.energy=float(energyMatch.match(header).group(1))
+            self.energy = float(energyMatch.match(header).group(1))
         else:
             self.energy = np.nan
 
@@ -63,7 +65,7 @@ class CT:
         self.seq = seq
         self.ct = bp
         self.substructure = []
-        #print(self.energy)
+        # print(self.energy)
 
         substructures = []
         if suboptimal:
@@ -103,11 +105,15 @@ class CT:
         w = open(fOUT, 'w')
         line = '{0:6d} {1}\n'.format(len(self.num), self.name)
         for i in range(len(self.num) - 1):
-            line += '{0:5d} {1} {2:5d} {3:5d} {4:5d} {0:5d}\n'.format(self.num[i], self.seq[i], self.num[i] - 1, self.num[i] + 1, self.ct[i])  # noqa
+            line += '{0:5d} {1} {2:5d} {3:5d} {4:5d} {0:5d}\n'.format(
+                self.num[i], self.seq[i], self.num[i] - 1, self.num[i] + 1, self.ct[i]
+            )  # noqa
 
         # last line is different
         i = len(self.num) - 1
-        line += '{0:5d} {1} {2:5d} {3:5d} {4:5d} {0:5d}\n'.format(self.num[i], self.seq[i], self.num[i] - 1, 0, self.ct[i])  # noqa
+        line += '{0:5d} {1} {2:5d} {3:5d} {4:5d} {0:5d}\n'.format(
+            self.num[i], self.seq[i], self.num[i] - 1, 0, self.ct[i]
+        )  # noqa
         w.write(line)
         w.close()
 
@@ -205,14 +211,22 @@ class CT:
         for i, j in pairs:
             if self.ct[i - 1] != 0:
                 print(
-                    'Warning: conflicting pairs, ({0} - {1}) : ({2} - {3})'.format(str(i), str(j), str(self.ct[i - 1]), str(i)))  # noqa
+                    'Warning: conflicting pairs, ({0} - {1}) : ({2} - {3})'.format(
+                        str(i), str(j), str(self.ct[i - 1]), str(i)
+                    )
+                )  # noqa
                 if skipConflicting:
                     continue
+
             if self.ct[j - 1] != 0:
                 print(
-                    'Warning: conflicting pairs, ({0} - {1}) : ({2} - {3})'.format(str(i), str(j), str(j), str(self.ct[j - 1])))  # noqa
+                    'Warning: conflicting pairs, ({0} - {1}) : ({2} - {3})'.format(
+                        str(i), str(j), str(j), str(self.ct[j - 1])
+                    )
+                )  # noqa
                 if skipConflicting:
                     continue
+
             self.ct[i - 1] = j
             self.ct[j - 1] = i
 
@@ -234,24 +248,20 @@ class CT:
         pairs = out.pairList()
         seq_pairs = []
 
-        for i,j in pairs:
-            k, l = out.seq[i-1], out.seq[j-1]
-            seq_pairs.append((k,l))
-        
-        allowedPairs = ["AU", "UA", 
-                        "GC", "CG", 
-                        "GU", "UG",
-                        "AT", "TA",
-                        "GT", "TG"]
-        
-        # go through the pairlist and check that pair is in the 
+        for i, j in pairs:
+            k, l = out.seq[i - 1], out.seq[j - 1]
+            seq_pairs.append((k, l))
+
+        allowedPairs = ["AU", "UA", "GC", "CG", "GU", "UG", "AT", "TA", "GT", "TG"]
+
+        # go through the pairlist and check that pair is in the
         # allowed list, append to a new array
         out_pairs = []
         for k, l in zip(pairs, seq_pairs):
             kind = "".join(l)
             if kind in allowedPairs:
                 out_pairs.append(k)
-        
+
         out_ct = CT()
         out_ct.pair2CT(out_pairs, out.seq, name=out.name)
 
@@ -260,59 +270,61 @@ class CT:
         out_pairs_clean = []
         for i, j in enumerate(out_ct.ct):
             # if there is no pair ignore this position
-            if j == 0: continue
-            
+            if j == 0:
+                continue
+
             # skip redunantly annotated pairs
-            if (i+1) > j: continue
-            
+            if (i + 1) > j:
+                continue
+
             # catch the 5p end of the RNA
             if i == 0:
-                # if the end is a 1 bp stack the 
-                # next pair will be 0, don't add it to the 
+                # if the end is a 1 bp stack the
+                # next pair will be 0, don't add it to the
                 # cleaned pairs
-                if out_ct.ct[i+1] == 0:
+                if out_ct.ct[i + 1] == 0:
                     continue
-            
+
             # catch the 3p end of the rna
-            if i+1 == len(out_ct.ct):
-                prev_right = out_ct.ct[i-1]
-                next_right = out_ct.ct[i+1]
-                if prev_right == 0 and next_right == 0: continue
+            if i + 1 == len(out_ct.ct):
+                prev_right = out_ct.ct[i - 1]
+                next_right = out_ct.ct[i + 1]
+                if prev_right == 0 and next_right == 0:
+                    continue
 
             # catch the general case for an internal 1-bp helix
 
             # fix 1-index
             across = out_ct.ct[i] - 1
 
-            prev_left  = out_ct.ct[across-1]
+            prev_left = out_ct.ct[across - 1]
 
             # edge case, if nt is paired to the last nt
             # there is no next_left, catch and set to non-zero
-            if across+1 >= len(out_ct.ct):
+            if across + 1 >= len(out_ct.ct):
                 next_left = 1
             else:
-                next_left = out_ct.ct[across+1]
+                next_left = out_ct.ct[across + 1]
 
-            prev_right = out_ct.ct[i-1]
-            next_right = out_ct.ct[i+1]
+            prev_right = out_ct.ct[i - 1]
+            next_right = out_ct.ct[i + 1]
 
-            #print("#"*30)
-            #print(i, prev_left, prev_right)
-            #print(i, next_left, next_right)
-            if prev_left == 0 and next_left == 0: continue
-            elif prev_right == 0 and next_right == 0: continue
-            
+            # print("#"*30)
+            # print(i, prev_left, prev_right)
+            # print(i, next_left, next_right)
+            if prev_left == 0 and next_left == 0:
+                continue
+
+            elif prev_right == 0 and next_right == 0:
+                continue
+
             # passing all the checks add it to the new ct file
             else:
-                out_pairs_clean.append((i+1, out_ct.ct[i]))
-        
+                out_pairs_clean.append((i + 1, out_ct.ct[i]))
+
         out_pairs_clean_ct = CT()
-        out_pairs_clean_ct.pair2CT(out_pairs_clean, out.seq, name=out.name )
+        out_pairs_clean_ct.pair2CT(out_pairs_clean, out.seq, name=out.name)
         return out_pairs_clean_ct
-
-
-
-        
 
     def cutCT(self, start, end):
         """
@@ -377,6 +389,7 @@ class CT:
             k -= 1
             if k - 1 == j:
                 return bcount
+
             bcount += 1
             while k > j:
                 if rna.ct[k] == 0:
@@ -385,7 +398,9 @@ class CT:
                 # if not single stranded, exit the backtrace
                 else:
                     return None
+
             return bcount
+
         # search forward through sequence
         while k < j:
             # debuging stuff, prevent infinite loop
@@ -428,7 +443,7 @@ class CT:
             elif self.ct[k] < k + 1:
                 k += 1
                 count += 1
-                # print "Backtracking prevented, going forward to "+str(k+1)
+            # print "Backtracking prevented, going forward to "+str(k+1)
 
             # handle branching, jumping the base of a helix is only 1
             else:
@@ -441,10 +456,10 @@ class CT:
                 if k - 1 == j:
                     break
 
-                # one count for jumping the helix
-                # count += 15.0
-                # count += 1
-            # print i,k,j
+        # one count for jumping the helix
+        # count += 15.0
+        # count += 1
+        # print i,k,j
         finalCount = min(count, tempBack)
         return finalCount
 
@@ -467,6 +482,7 @@ class CT:
             if rna.ct[nt] == 0:
                 nt += 1
                 continue
+
             else:
                 # skip dups
                 if nt > rna.ct[nt]:
@@ -482,6 +498,7 @@ class CT:
                     # see if the helix juts up against another one
                     if abs(rna.ct[nt] - previous) > 1:
                         break
+
                     # add the pairs
                     elif rna.ct[nt] != 0:
                         tempPairs.append((nt + 1, rna.ct[nt]))
@@ -491,13 +508,14 @@ class CT:
                     else:
                         if rna.ct[nt + 1] == rna.ct[nt - 1] - 1:
                             nt += 1
-                            # print 'slip'
+                        # print 'slip'
                         else:
                             break
 
                 # remove single bp helices
                 if len(tempPairs) <= 1:
                     continue
+
                 helices[heNum] = tempPairs
                 heNum += 1
         return helices
@@ -524,6 +542,7 @@ class CT:
         suboptimal structure in the population
         """
         import md5
+
         if len(self.substructure) == 0:
             print("ERROR: No substructures present")
             return 0
@@ -557,9 +576,11 @@ class CT:
             if max(h1[0]) > min(h2[0]) > min(h1[0]):
                 if max(h2[0]) > max(h1[0]):
                     return True
+
             if max(h2[0]) > min(h1[0]) > min(h2[0]):
                 if max(h1[0]) > max(h2[0]):
                     return True
+
             else:
                 return False
 
@@ -679,6 +700,7 @@ def padCT(targetCT, referenceCT, giveAlignment=False):
     out.name = targetCT.name + '_renum_' + str(pos)
     if giveAlignment:
         return out, pos
+
     else:
         return out
 
@@ -720,8 +742,10 @@ def readSeq(fIN, type='RNAstructure'):
     for i in open(fIN, "rU").read().split():
         if len(i) == 0:
             continue
+
         if i[0] == ";":
             continue
+
         seqRaw.append(i)
 
     name = seqRaw[0]
@@ -730,11 +754,13 @@ def readSeq(fIN, type='RNAstructure'):
     for i in seqJoin:
         if i == '1':
             break
+
         seq.append(i)
     return name
 
 
 class dotPlot:
+
     def __init__(self, fIN=None):
         # if givin an input file construct the dotplot object automatically
         self.name = None
@@ -748,7 +774,8 @@ class dotPlot:
 
     def __str__(self):
         a = '{ Name= %s, len(RNA)= %s, entries(dotPlot)= %s }' % (
-            self.name, str(self.length), str(len(self.dp['i'])))
+            self.name, str(self.length), str(len(self.dp['i']))
+        )
         return a
 
     def readDP(self, fIN):
@@ -767,9 +794,9 @@ class dotPlot:
             i.append(int(line[0]))
             j.append(int(line[1]))
             logBP.append(float(line[2]))
-            # ln+=1
-            # if ln%500 == 0:
-            #    print ln
+        # ln+=1
+        # if ln%500 == 0:
+        #    print ln
         # load in as python object first, MUCH faster
         out.dp['i'] = np.append(out.dp['i'], i)
         out.dp['j'] = np.append(out.dp['j'], j)
@@ -787,11 +814,15 @@ class dotPlot:
 
         # resort the array first by j
         jsort = np.argsort(self.dp['j'], kind='mergesort')
-        i, j, logbp = self.dp['i'][jsort], self.dp['j'][jsort], self.dp['logBP'][jsort]  # noqa
+        i, j, logbp = self.dp['i'][jsort], self.dp['j'][jsort], self.dp['logBP'][
+            jsort
+        ]  # noqa
 
         # then by i
         isort = np.argsort(self.dp['i'], kind='mergesort')
-        i, j, logbp = self.dp['i'][isort], self.dp['j'][isort], self.dp['logBP'][isort]  # noqa
+        i, j, logbp = self.dp['i'][isort], self.dp['j'][isort], self.dp['logBP'][
+            isort
+        ]  # noqa
 
         self.dp['i'] = i
         self.dp['j'] = j
@@ -800,7 +831,8 @@ class dotPlot:
         # main file
         for n in range(len(self.dp['i'])):
             line = "{0}\t{1}\t{2}\n".format(
-                int(self.dp['i'][n]), int(self.dp['j'][n]), self.dp['logBP'][n])  # noqa
+                int(self.dp['i'][n]), int(self.dp['j'][n]), self.dp['logBP'][n]
+            )  # noqa
             w.write(line)
         # close file
         w.close()
@@ -864,7 +896,9 @@ class dotPlot:
             return out
 
         if which == '3prime':
-            dpfilter = (self.length - trimSize >= dp['i']) * (self.length - trimSize >= dp['j'])   # noqa
+            dpfilter = (self.length - trimSize >= dp['i']) * (
+                self.length - trimSize >= dp['j']
+            )  # noqa
             out.dp['i'] = np.array(dp['i'][dpfilter])
             out.dp['j'] = np.array(dp['j'][dpfilter])
             out.dp['logBP'] = np.array(dp['logBP'][dpfilter])
@@ -877,7 +911,9 @@ class dotPlot:
             return out
 
         dpfilter1 = (dp['i'] >= trimSize) * (dp['j'] >= trimSize)
-        dpfilter2 = (self.length - trimSize >= dp['i']) * (self.length - trimSize >= dp['j'])  # noqa
+        dpfilter2 = (self.length - trimSize >= dp['i']) * (
+            self.length - trimSize >= dp['j']
+        )  # noqa
         dpfilter = dpfilter1 * dpfilter2
         out.dp['i'] = np.array(dp['i'][dpfilter])
         out.dp['j'] = np.array(dp['j'][dpfilter])
@@ -893,7 +929,7 @@ class dotPlot:
             w = open(toFile, 'w')
 
         # precalculate nlog(n), array is already in -logForm
-        dp['nlogn'] = dp['logBP'] * 10**(-1 * dp['logBP'])
+        dp['nlogn'] = dp['logBP'] * 10 ** (-1 * dp['logBP'])
 
         for nt in range(1, self.length + 1):
             # if col i or j is the nt include the value and sum it
@@ -947,6 +983,7 @@ class dotPlot:
                 # skip non-paired nucleotides
                 if pair_j == 0:
                     continue
+
                 # skip pairs i > j so we don't double count
                 if pair_j < pair_i:
                     continue
@@ -973,7 +1010,7 @@ class dotPlot:
                 at = filter_j * filter_i
 
                 # handle slippage, first define base prob
-                prob_at = 10**(-dotPlot['logBP'][at])
+                prob_at = 10 ** (-dotPlot['logBP'][at])
 
                 # cycle through all filter combinations
                 for filterPair in list(filterDP.keys()):
@@ -984,7 +1021,7 @@ class dotPlot:
                     # if pair exists ...
                     if np.sum(curr) == 1:
                         # add it to predicted pair probability
-                        prob_at += 10**(-dotPlot['logBP'][curr])
+                        prob_at += 10 ** (-dotPlot['logBP'][curr])
 
                         # add pair to slipped list if it meets slip criteria
                         if dotPlot['logBP'][curr] < slippedCutoff:
@@ -1012,8 +1049,7 @@ class dotPlot:
 
                 # only continue if the pair is reasonably likely
                 # (>1% chance of forming)
-                if (np.sum(filter_union) == 1
-                        and dotPlot['logBP'][filter_union] < 3):
+                if (np.sum(filter_union) == 1 and dotPlot['logBP'][filter_union] < 3):
                     filterList = {}
 
                     # define the various types of slippage
@@ -1029,7 +1065,7 @@ class dotPlot:
                     filterList['after_j'] = filter_i * filter_jafter
 
                     # define the prob at in normal normal space
-                    prob_at = 10**(-dotPlot['logBP'][filter_union])
+                    prob_at = 10 ** (-dotPlot['logBP'][filter_union])
 
                     # go through each of the filters
                     for pairFilter in list(filterList.keys()):
@@ -1039,9 +1075,11 @@ class dotPlot:
                         if np.sum(curr) == 1:
                             # check to see if it's less likely than current
                             # pairs
-                            if dotPlot['logBP'][filter_union] < dotPlot['logBP'][curr]:  # noqa
+                            if dotPlot['logBP'][filter_union] < dotPlot['logBP'][
+                                curr
+                            ]:  # noqa
                                 # and add it to the current pair if it is
-                                prob_at += 10**(-dotPlot['logBP'][curr])
+                                prob_at += 10 ** (-dotPlot['logBP'][curr])
 
                                 # set to a very low probabliity afterwards
                                 dotPlot['logBP'][curr] = 50
@@ -1060,7 +1098,7 @@ class dotPlot:
         prob = []
 
         # convert the -log10 values to untransformed probability
-        dp['prob'] = 10**(-1 * dp['logBP'])
+        dp['prob'] = 10 ** (-1 * dp['logBP'])
 
         # use a numpy array to mask entires containing i or j and sum
         # the probability for each nt in the RNA
