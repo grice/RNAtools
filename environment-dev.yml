@@ -1,0 +1,17 @@
+name: rnatools-dev
+channels:
+- defaults
+- conda-forge
+- ericmjl
+dependencies:
+- python=3.6
+- jupyter
+- jupyterlab
+- networkx
+- pandas
+- pytest
+- setuptools
+- Cython
+- numpy
+- matplotlib
+- scikit-learn
