@@ -326,8 +326,10 @@ def arcplot(outPath="arcs.pdf",title="",seq=["A"],pairedNucArr=[], arcColors = [
         plot.xlim(0,len(seq))
         plot.ylim(0,maxDistance/2.0)
 
+        ax1.spines["bottom"].set_position(("axes", -0.025))
+
         # get the helices from the ct file
-        helix = ct.extractHelices()
+        helix = ct.extractHelices(fillPairs=False)
 
         plot_set = []
         plot_color = []
