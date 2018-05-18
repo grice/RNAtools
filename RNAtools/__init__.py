@@ -1,17 +1,3 @@
-########################################################
-#                                                      #
-#      RNAtools.py CT and dotplot data structures      #
-#               v 0.8.3     23 Nov  2014               #
-#                                                      #
-#          author gregg rice - gmr@unc.edu             #
-#                                                      #
-########################################################
-
-# 0.8   numpy dotplot functions added
-# 0.8.1 contact distance fixed
-# 0.8.2 pairing probability function added - 5/6/2015 gmr
-# 0.8.3 added substructures and dot2ct function
-
 import sys, re
 import numpy as np
 import re
