@@ -1,4 +1,4 @@
-import sys, re
+import sys
 import numpy as np
 import re
 
@@ -92,8 +92,8 @@ class CT:
         line = '{0:6d} {1}\n'.format(len(self.num), self.name)
         for i in range(len(self.num) - 1):
             line += '{0:5d} {1} {2:5d} {3:5d} {4:5d} {0:5d}\n'.format(
-                self.num[i], self.seq[i], self.num[i] - 1, self.num[i] + 1, self.ct[i]
-            )  # noqa
+                self.num[i], self.seq[i], self.num[i] - 1, self.num[i] + 1, self.ct[i]   # noqa: E501
+            )
 
         # last line is different
         i = len(self.num) - 1
