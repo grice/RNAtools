@@ -10,7 +10,7 @@ ext_1 = Extension('RNAtools.partAlign',
 
 EXTENSIONS = [ext_1]
 setup(name='RNAtools',
-      version='0.8.4',
+      version='0.8.5',
       description='Tools for working with RNA files.',
       author='Gregg M. Rice, Eric J. Ma, Varun Shivashankar',
       author_email='gmr@unc.edu, ericmajinglong@gmail.com, varunshivashankar@gmail.com',
