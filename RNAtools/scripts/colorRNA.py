@@ -595,12 +595,12 @@ def drawNums(varna,offset):
     return line
 
 
-def drawOutline(varna):
+def drawOutline(varna,strokewidth=3):
     outlineString = '<polyline points= "'
     for nuc in varna.baseMap:
         pt = nuc[1]
         outlineString += '%f,%f ' % (pt[0],pt[1]-4)
-    outlineString += '" stroke="rgb(200,200,200)" stroke-width="3.0" fill="none"/>'
+    outlineString += '" stroke="rgb(200,200,200)" stroke-width="{0}.0" fill="none"/>'.format(strokewidth)
     return outlineString
 
 
@@ -724,6 +724,7 @@ def parseArgs():
     prs.add_argument('-s','--shape',action='store',type=str,help='overide stored chemical probing values from varna')
     prs.add_argument('--offset', action='store',type=int,default=0,help='numbering ofset, adds this to the numbering in the file')
     prs.add_argument('--switch',action='store_true',default=False,help='reverse the pairing coloring scheme')
+    prs.add_argument('--onlyCircles',action='store_true',default=False,help="only draw the base positions as circles, needs colorfile input")
     o=prs.parse_args()
     return o
 
@@ -788,6 +789,8 @@ def main():
 
     # draw nucleotide outline
     outline = drawOutline(svgStruct)
+    if arg.onlyCircles:
+        outline = drawOutline(svgStruct, strokewidth=15)
 
     # draw circles behind nucleotides
     circles = drawCircles(svgStruct)
@@ -816,6 +819,11 @@ def main():
 
     #write file
     out = header + background + outline + arrows + circles + letters + drawnLines + extraLines + '</svg>'
+
+    # catch only circles
+    if arg.onlyCircles:
+        out = header + background + outline + circles + '</svg>'
+
     w = open(arg.output,"w")
     w.write(out)
     w.close()
