@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 import re
+import networkx as nx
 
 
 class CT:
@@ -350,104 +351,26 @@ class CT:
     def contactDistance(self, i, j):
         """
         calculates the contact distance between pairs i,j in
-        in the RNA using the RNAtools CT object. Method for
-        calculating the contact is described in Hajdin et al
-        (2013).
+        in the RNA using the RNAtools CT object. networkx is
+        used to calculate the distance between i and j
         """
-        # correct for indexing offset
-        i, j = i - 1, j - 1
+        rna = self.copy()
 
-        # error out if nucleotide out of range
-        if max(i, j) > len(self.ct):
-            print('Error!, nucleotide {0} out of range!'.format(max(i, j) + 1))
-            return
+        G = nx.Graph()
+        G.add_nodes_from(rna.num)
 
-        # i must always be less than j, correct for this
-        if j < i:
-            i, j = j, i
+        # edges from adjacent nts
+        ordinal_edge = [[i,i+1] for i in rna.num[:-1]]
+        # edges from base pairs
+        base_pairs = rna.pairList()
 
-        count = 0.0
-        tempBack = 10000.0
-        k = int(i)
+        # add the edges
+        G.add_edges_from(ordinal_edge)
+        G.add_edges_from(base_pairs)
 
-        def backTrace(rna, j, k):
-            bcount = 2
-            k -= 1
-            if k - 1 == j:
-                return bcount
-
-            bcount += 1
-            while k > j:
-                if rna.ct[k] == 0:
-                    k -= 1
-                    bcount += 1
-                # if not single stranded, exit the backtrace
-                else:
-                    return None
-
-            return bcount
-
-        # search forward through sequence
-        while k < j:
-            # debuging stuff, prevent infinite loop
-            # if count > 200:
-            #    print i,j
-            #    break
-
-            # nonpaired nucleotides are single beads
-            if self.ct[k] == 0:
-                k += 1
-                # count += 6.5
-                count += 1
-
-            # branches through helices can't be skipped
-            # treated as single beads
-            elif self.ct[k] > j + 1:
-                # try backtracing a few if it is close (within 10)
-                if self.ct[k] - 10 < j:
-                    back = backTrace(self, j, self.ct[k])
-                    # if the backtracing is able to reach
-                    # your nt, add its length to the count
-                    # and break
-                    if back:
-                        # print 'backitup'
-                        # store the backtracing count for later
-                        # if it ends up being lower than the final
-                        # we will use it instead
-                        if count + back < tempBack:
-                            tempBack = count + back
-                k += 1
-                # count += 6.5
-                count += 1
-
-            # simple stepping
-            elif self.ct[k] < i + 1:
-                k += 1
-                # count += 6.5
-                count += 1
-
-            elif self.ct[k] < k + 1:
-                k += 1
-                count += 1
-            # print "Backtracking prevented, going forward to "+str(k+1)
-
-            # handle branching, jumping the base of a helix is only 1
-            else:
-                # one count for the step to the next
-                count += 1
-                k = self.ct[k] - 1
-
-                # if by jumping you land on your nt
-                # stop counting
-                if k - 1 == j:
-                    break
-
-        # one count for jumping the helix
-        # count += 15.0
-        # count += 1
-        # print i,k,j
-        finalCount = min(count, tempBack)
-        return finalCount
+        shortPath = nx.shortest_path_length(G, i, j)
+        
+        return shortPath
 
     def extractHelices(self, fillPairs=True):
         """
