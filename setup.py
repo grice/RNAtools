@@ -10,7 +10,7 @@ ext_1 = Extension('RNAtools.partAlign',
 
 EXTENSIONS = [ext_1]
 setup(name='RNAtools',
-      version='0.8.5',
+      version='0.9.0',
       description='Tools for working with RNA files.',
       author='Gregg M. Rice, Eric J. Ma, Varun Shivashankar',
       author_email='gmr@unc.edu, ericmajinglong@gmail.com, varunshivashankar@gmail.com',
@@ -24,5 +24,6 @@ setup(name='RNAtools',
         'console_scripts': ['dot2ct=RNAtools.scripts.dot2ct:main',
                             'colorRNA=RNAtools.scripts.colorRNA:main',
                             'arcsRNA=RNAtools.scripts.arcsRNA:main',
-                            'cleanCT=RNAtools.scripts.cleanCT:main']
+                            'cleanCT=RNAtools.scripts.cleanCT:main',
+                            'data2colorfile=RNAtools.scripts.data2colorfile:main']
       })
