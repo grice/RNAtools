@@ -434,11 +434,11 @@ def run_alignment_test():
     tmp1, tmp2, scoreMax  = align_RNA_partition_backtrace(x,y)
     print(list(tmp1))
     print(list(tmp2))
-    print scoreMax
+    print(scoreMax)
 
 
 
-    print time.time()-tstart
+    print(time.time()-tstart)
 
 if __name__ == "__main__":
     run_alignment_test()
